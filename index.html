@@ -1,1 +1,107 @@
-<h1> Hello! </h1>
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Interactive Slideshow Narrative Visualization</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    /* Add any desired CSS styles for the visualization */
+  </style>
+</head>
+<body>
+  <div id="slideshow-container">
+    <div class="slide"></div>
+    <div class="slide"></div>
+    <div class="slide"></div>
+    <div class="slide"></div>
+    <div class="slide"></div>
+  </div>
+  <div>
+    <button onclick="previousSlide()">Previous</button>
+    <button onclick="nextSlide()">Next</button>
+  </div>
+
+  <script>
+    // Custom data for energy consumption of countries across six years
+    const data = [
+      { year: 2016, country1: 150, country2: 220, country3: 180, country4: 120, country5: 250 },
+      { year: 2017, country1: 160, country2: 200, country3: 190, country4: 130, country5: 240 },
+      { year: 2018, country1: 170, country2: 210, country3: 200, country4: 140, country5: 230 },
+      { year: 2019, country1: 180, country2: 190, country3: 210, country4: 150, country5: 220 },
+      { year: 2020, country1: 190, country2: 180, country3: 220, country4: 160, country5: 210 },
+      { year: 2021, country1: 200, country2: 170, country3: 230, country4: 170, country5: 200 }
+    ];
+
+    let currentSlide = 0;
+    const slides = d3.selectAll('.slide');
+    slides.style('display', 'none'); // Hide all slides initially
+    slides.nodes()[currentSlide].style.display = 'block'; // Show the initial slide
+
+    function showSlide(slideIndex) {
+      slides.style('display', 'none'); // Hide all slides
+      slides.nodes()[slideIndex].style.display = 'block'; // Show the current slide
+    }
+
+    function previousSlide() {
+      currentSlide = (currentSlide - 1 + slides.size()) % slides.size();
+      showSlide(currentSlide);
+    }
+
+    function nextSlide() {
+      currentSlide = (currentSlide + 1) % slides.size();
+      showSlide(currentSlide);
+    }
+
+    // Function to draw the line chart within each slide
+    function drawLineChart(data) {
+      const margin = { top: 20, right: 20, bottom: 30, left: 50 };
+      const width = 600 - margin.left - margin.right;
+      const height = 400 - margin.top - margin.bottom;
+      
+      const svg = d3.select('.slide:nth-child(' + (currentSlide + 1) + ')')
+        .append('svg')
+        .attr('width', width + margin.left + margin.right)
+        .attr('height', height + margin.top + margin.bottom)
+        .append('g')
+        .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+
+      const xScale = d3.scaleLinear()
+        .domain(d3.extent(data, d => d.year))
+        .range([0, width]);
+      
+      const yScale = d3.scaleLinear()
+        .domain([0, d3.max(data, d => d3.max(Object.values(d).slice(1)))])
+        .range([height, 0]);
+      
+      const line = d3.line()
+        .x(d => xScale(d.year))
+        .y(d => yScale(d.value));
+
+      Object.keys(data[0]).slice(1).forEach(country => {
+        svg.append('path')
+          .datum(data)
+          .attr('fill', 'none')
+          .attr('stroke', 'steelblue')
+          .attr('stroke-width', 2)
+          .attr('d', d => line(d.map(e => ({ year: e.year, value: e[country] }))));
+
+        svg.append('text')
+          .attr('transform', 'translate(' + (width + 3) + ',' + yScale(data[data.length - 1][country]) + ')')
+          .attr('dy', '.35em')
+          .attr('fill', 'steelblue')
+          .text(country);
+      });
+
+      svg.append('g')
+        .attr('transform', 'translate(0,' + height + ')')
+        .call(d3.axisBottom(xScale));
+
+      svg.append('g')
+        .call(d3.axisLeft(yScale));
+    }
+
+    drawLineChart(data);
+
+  </script>
+</body>
+</html>
