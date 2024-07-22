@@ -1,107 +1,599 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <meta charset="utf-8">
-  <title>Interactive Slideshow Narrative Visualization</title>
+  <title>Coal Consumption by Country</title>
   <script src="https://d3js.org/d3.v7.min.js"></script>
   <style>
-    /* Add any desired CSS styles for the visualization */
+    .tooltip {
+      position: absolute;
+      padding: 6px;
+      background-color: white;
+      border: 1px solid #ccc;
+      font-size: 12px;
+      color: black;
+      pointer-events: none;
+      opacity: 0;
+    }
+
+    .line {
+      opacity: 0.3;
+    }
+
+    .line:hover {
+      opacity: 1;
+      stroke-width: 3;
+    }
+
+    .serie_label {
+      fill: #2b2929;
+      font-family: Georgia;
+      font-size: 80%;
+    }
+
+    .chart-buttons-container {
+      display: flex;
+      justify-content: center;
+    }
+
+    .chart-buttons-container button {
+      margin: 0 5px;
+    }
   </style>
 </head>
+
 <body>
-  <div id="slideshow-container">
-    <div class="slide"></div>
-    <div class="slide"></div>
-    <div class="slide"></div>
-    <div class="slide"></div>
-    <div class="slide"></div>
-  </div>
-  <div>
-    <button onclick="previousSlide()">Previous</button>
-    <button onclick="nextSlide()">Next</button>
-  </div>
+  <svg id="chart"></svg>
+  <div class="tooltip"></div>
 
-  <script>
-    // Custom data for energy consumption of countries across six years
-    const data = [
-      { year: 2016, country1: 150, country2: 220, country3: 180, country4: 120, country5: 250 },
-      { year: 2017, country1: 160, country2: 200, country3: 190, country4: 130, country5: 240 },
-      { year: 2018, country1: 170, country2: 210, country3: 200, country4: 140, country5: 230 },
-      { year: 2019, country1: 180, country2: 190, country3: 210, country4: 150, country5: 220 },
-      { year: 2020, country1: 190, country2: 180, country3: 220, country4: 160, country5: 210 },
-      { year: 2021, country1: 200, country2: 170, country3: 230, country4: 170, country5: 200 }
-    ];
+  <div class="chart-buttons-container">
+    <button id="previousButton">-10 Years</button>
+    <button id="nextButton">+10 Years</button>
+    <script>
+      let descriptionText = "hi"
+      const descriptions = [
+        "During the 1970s and 1980s, the world experienced significant developments and shifts in coal consumption. The United States, followed by China and Germany, emerged as the top consumers of coal during this period. This rise in coal consumption was driven by several factors. Firstly, the global energy demand was on the rise as economies expanded, leading to a greater need for affordable and reliable energy sources like coal. Secondly, the era witnessed energy crises and oil shocks, triggering a focus on diversifying energy sources. The United States, in particular, heavily relied on coal to reduce dependence on oil imports. However, this period also saw growing concerns about environmental issues, such as air pollution and acid rain, associated with coal-fired power plants. These concerns prompted stricter regulations and emission controls. Meanwhile, China, undergoing rapid industrialization, increasingly relied on coal to meet its growing energy demands. Germany, too, heavily consumed coal as a reliable domestic energy source. The trends observed during this time period laid the foundation for future environmental challenges and the transition towards cleaner and more sustainable energy sources.",
+        "During the 1980s, China and the United States emerged as dominant coal consumers, pulling away from the rest. In the United States, coal consumption remained high due to its reliance on coal for electricity generation and industrial processes. The country faced challenges transitioning to alternative energy sources, and advancements in clean coal technologies made it a viable option. China, experiencing rapid industrial expansion and urbanization, heavily relied on coal to meet growing energy demands. Factors like limited access to alternatives, rapid urbanization, and economic reforms contributed to China's increasing coal consumption. These trends were influenced by broader geopolitical and economic factors, and at the time, global concerns about environmental impacts and climate change were still in their early stages.",
+        "From 1990 to 2000, China remained the largest consumer of coal globally, followed by the United States and India. China's rapid industrialization and urbanization, along with limited access to alternatives, continued to drive its coal consumption. The United States also heavily relied on coal for electricity generation and industrial processes. India emerged as the third-largest consumer due to population growth, expanding industries, and increased energy demands. These trends highlight the ongoing significance of coal as an energy source during this period, despite growing environmental concerns.",
+        "From 2000 to 2010, China's coal consumption surged, surpassing the United States as the largest consumer globally. The key factor behind China's dominance was its admission to the World Trade Organization in 2002, triggering rapid industrialization, urbanization, and infrastructure development. The country's expanding manufacturing sector, ample domestic coal reserves, and increased energy demand propelled its coal consumption to unprecedented levels, solidifying its position as the top consumer of coal during this period.",
+        "From 2010 to 2020, China continued to maintain its dominance as the leading consumer of coal globally. Several factors contributed to China's continued dominance during this period. Firstly, China sustained its rapid industrialization and urbanization, driving the demand for coal as a primary energy source to power its expanding manufacturing sector and growing cities. Secondly, China's massive infrastructure projects, such as the Belt and Road Initiative, further fueled coal consumption as it required substantial energy inputs. Additionally, China's reliance on coal was supported by its abundant domestic reserves, which provided a relatively low-cost and accessible energy source. Despite efforts to diversify its energy mix and reduce coal usage, China's reliance on coal remained strong due to its affordability, availability, and the challenges associated with transitioning to cleaner alternatives on such a large scale. Moreover, China's policy of maintaining energy security and reducing reliance on imported fuels contributed to the continued dominance of coal in its energy mix. These factors combined to solidify China's position as the dominant consumer of coal in the 2010-2020 period, despite increasing global awareness and efforts to transition to cleaner energy sources."
+      ];
 
-    let currentSlide = 0;
-    const slides = d3.selectAll('.slide');
-    slides.style('display', 'none'); // Hide all slides initially
-    slides.nodes()[currentSlide].style.display = 'block'; // Show the initial slide
+      // Set the dimensions and margins of the chart
+      const margin = { top: 100, right: 400, bottom: 60, left: 50 };
+      const width = 1500 - margin.left - margin.right;
+      const height = 700 - margin.top - margin.bottom;
+      const centerX = width / 2 + 100; // Calculate the center X coordinate and shift by 100 pixels
+      const centerY = height / 2; // Calculate the center Y coordinate
 
-    function showSlide(slideIndex) {
-      slides.style('display', 'none'); // Hide all slides
-      slides.nodes()[slideIndex].style.display = 'block'; // Show the current slide
-    }
+      const duration = 2000;
 
-    function previousSlide() {
-      currentSlide = (currentSlide - 1 + slides.size()) % slides.size();
-      showSlide(currentSlide);
-    }
+      let startYear = 1970;
+      let endYear = 1980;
+      let data; // Define the data variable
 
-    function nextSlide() {
-      currentSlide = (currentSlide + 1) % slides.size();
-      showSlide(currentSlide);
-    }
+      // Append the SVG container to the page
+      const svg = d3.select("#chart")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+        .append("g")
+        .attr("transform", `translate(${margin.left},${margin.top})`);
 
-    // Function to draw the line chart within each slide
-    function drawLineChart(data) {
-      const margin = { top: 20, right: 20, bottom: 30, left: 50 };
-      const width = 600 - margin.left - margin.right;
-      const height = 400 - margin.top - margin.bottom;
-      
-      const svg = d3.select('.slide:nth-child(' + (currentSlide + 1) + ')')
-        .append('svg')
-        .attr('width', width + margin.left + margin.right)
-        .attr('height', height + margin.top + margin.bottom)
-        .append('g')
-        .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+      svg.append("text")
+        .attr("x", width / 2)
+        .attr("y", -50)
+        .attr("text-anchor", "middle")
+        .attr("class", "chart-title")
+        .style("font-weight", "bold")
+        .style("font-size", "20px")
+        .text("My Chart Title");
 
-      const xScale = d3.scaleLinear()
-        .domain(d3.extent(data, d => d.year))
-        .range([0, width]);
-      
-      const yScale = d3.scaleLinear()
-        .domain([0, d3.max(data, d => d3.max(Object.values(d).slice(1)))])
-        .range([height, 0]);
-      
+      const chartContainer = svg.append("g")
+        .attr("transform", `translate(${margin.left}, ${margin.top})`)
+
+      let counter = 0; // Initialize the counter to 0
+
+      const descriptionContainer = svg.append("foreignObject")
+        .attr("width", 300) // Adjust the width of the description container
+        .attr("height", 1000)
+        .attr("x", width + margin.left + 30)
+        .attr("y", margin.top - 40);
+
+      descriptionText = descriptions[counter];
+
+
+      descriptionContainer.append("xhtml:div")
+        .attr("class", "chart-description")
+        .style("width", "100%") // Apply width to the div container
+        .style("font-size", "15px")
+        .html(descriptionText);
+
+
+      // Define the x and y scales
+      const x = d3.scaleLinear().range([0, width]);
+      const y = d3.scaleLinear().range([height, 0]);
+
+      // Add X axis label
+      svg.append("text")
+        .attr("class", "x-label")
+        .attr("text-anchor", "middle")
+        .attr("x", width / 2)
+        .attr("y", height + margin.bottom - 15)
+        .text("Year");
+
+      // Add Y axis label
+      svg.append("text")
+        .attr("class", "y-label")
+        .attr("text-anchor", "middle")
+        .attr("x", -height / 2)
+        .attr("y", -margin.left + 10)
+        .attr("transform", "rotate(-90)")
+        .text("Coal Consumption (units of energy)");
+
+      // Define the line generator
       const line = d3.line()
-        .x(d => xScale(d.year))
-        .y(d => yScale(d.value));
+        .x(d => x(d.year))
+        .y(d => y(d.coal_consumption))
+        .curve(d3.curveMonotoneX) // Optional: Add this line to apply a smooth curve to the line
+        .defined(d => !isNaN(d.coal_consumption)); // Optional: Add this line to handle missing data points
 
-      Object.keys(data[0]).slice(1).forEach(country => {
-        svg.append('path')
-          .datum(data)
-          .attr('fill', 'none')
-          .attr('stroke', 'steelblue')
-          .attr('stroke-width', 2)
-          .attr('d', d => line(d.map(e => ({ year: e.year, value: e[country] }))));
+      // Add this line after defining the line generator
+      line.curve(d3.curveMonotoneX); // Optional: Add this line to apply a smooth curve to the line
 
-        svg.append('text')
-          .attr('transform', 'translate(' + (width + 3) + ',' + yScale(data[data.length - 1][country]) + ')')
-          .attr('dy', '.35em')
-          .attr('fill', 'steelblue')
-          .text(country);
+      // Define the tooltip
+      const tooltip = d3.select("body").append("div")
+        .attr("class", "tooltip")
+        .style("opacity", 0);
+
+      function updateChart(groupedData, direction) {
+        // Remove the existing SVG and tooltip
+        d3.select("#chart").selectAll("*").remove();
+
+        // Append the SVG container to the page
+        const svg = d3.select("#chart")
+          .attr("width", width + margin.left + margin.right)
+          .attr("height", height + margin.top + margin.bottom)
+          .append("g")
+          .attr("transform", `translate(${width * direction},${margin.top})`); // Move the container to the right side of the screen
+        svg.append("text")
+          .attr("x", width / 2)
+          .attr("y", -50)
+          .attr("text-anchor", "middle")
+          .attr("class", "chart-title")
+          .style("font-weight", "bold")
+          .style("font-size", "20px")
+          .text("My Chart Title");
+        const descriptionContainer = svg.append("foreignObject")
+          .attr("width", 300) // Adjust the width of the description container
+          .attr("height", 1000)
+          .attr("x", width + margin.left + 30)
+          .attr("y", margin.top - 40);
+
+        descriptionText = descriptions[counter];
+
+
+        descriptionContainer.append("xhtml:div")
+          .attr("class", "chart-description")
+          .style("width", "100%") // Apply width to the div container
+          .style("font-size", "15px")
+          .html(descriptionText);
+
+        // Set the x and y domains based on the new data
+        const filteredData = Array.from(groupedData.values())
+          .reduce((accumulator, groupData) => accumulator.concat(groupData), []);
+        x.domain(d3.extent(filteredData, d => d.year));
+        y.domain([0, d3.max(filteredData, d => d.coal_consumption)]);
+
+        // Create an array to store the connected lines data
+        const connectedLinesData = [];
+
+        // Iterate over each group
+        for (const [_, groupData] of groupedData.entries()) {
+          // Sort the group data by year in ascending order
+          groupData.sort((a, b) => a.year - b.year);
+
+          // Connect the closest points within the group
+          for (let i = 0; i < groupData.length - 1; i++) {
+            const currentData = groupData[i];
+            const nextData = groupData[i + 1];
+            connectedLinesData.push(currentData);
+            connectedLinesData.push(nextData);
+          }
+        }
+
+        // Add X axis label
+        svg.append("text")
+          .attr("class", "x-label")
+          .attr("text-anchor", "middle")
+          .attr("x", width / 2)
+          .attr("y", height + margin.bottom - 15)
+          .text("Year");
+
+        // Add Y axis label
+        svg.append("text")
+          .attr("class", "y-label")
+          .attr("text-anchor", "middle")
+          .attr("x", -height / 2)
+          .attr("y", -margin.left + 10)
+          .attr("transform", "rotate(-90)")
+          .text("Coal Consumption (units of energy)");
+
+        // Define the line generator
+        const line = d3.line()
+          .x(d => x(d.year))
+          .y(d => y(d.coal_consumption))
+          .curve(d3.curveMonotoneX)
+          .defined(d => !isNaN(d.coal_consumption));
+
+        // Append lines to connect the closest points
+        const lines = svg.selectAll(".line")
+          .data(groupedData.values())
+          .enter()
+          .append("path")
+          .attr("class", "line")
+          .attr("fill", "none")
+          .attr("d", (groupData) => line(connectedLinesData.filter(d => groupData.includes(d))))
+          .style("stroke", (d) => {
+            const colorValue = `#${d[0].color}`;
+            return colorValue;
+          })
+          .attr("stroke-dasharray", function () { return this.getTotalLength() })
+          .attr("stroke-dashoffset", function () { return this.getTotalLength() })
+          .transition()
+          .duration(duration)
+          .delay((d, i) => i * 100) // Delay each line by 100ms
+          .attr("stroke-width", 3)
+          .style("opacity", 1)
+          .attr("stroke-dashoffset", 0);
+
+        // Append circles for each data point
+        svg.selectAll(".dot")
+          .data(filteredData)
+          .enter()
+          .append("circle")
+          .attr("class", "dot")
+          .attr("cx", d => x(d.year))
+          .attr("cy", d => y(d.coal_consumption))
+          .attr("r", 4)
+          .style("fill", (d, i) => {
+            if (!d || typeof d.color === "undefined") {
+              console.log("Undefined color at index:", i);
+            }
+            const colorValue = `#${d.color}`;
+            return colorValue;
+          })
+          .on("mouseover", function (event, d) {
+            // Dim other circles
+            svg.selectAll(".dot")
+              .style("opacity", (circleData) => (circleData === d) ? 1 : 0.1);
+            // Dim other lines
+            svg.selectAll(".line")
+              .style("opacity", (lineData) => (lineData[0].iso_code === d.iso_code) ? 1 : 0.1);
+            // Dim other lines labels
+            svg.selectAll(".line-label")
+              .style("opacity", (lineLabel) => (lineLabel[0].iso_code === d.iso_code) ? 1 : 0.1);
+            // Display tooltip
+            tooltip.transition()
+              .duration(200)
+              .style("opacity", 1);
+            tooltip.html(`${d.year} ${d.iso_code}, Coal Consumption: ${d.coal_consumption} Units`)
+              .style("left", (event.pageX) + "px")
+              .style("top", (event.pageY - 28) + "px");
+          })
+          .on("mouseout", function () {
+            // Restore opacity of all circles and lines
+            svg.selectAll(".dot")
+              .style("opacity", 1);
+            svg.selectAll(".line")
+              .style("opacity", 1);
+            svg.selectAll(".line-label")
+              .style("opacity", 1);
+            // Hide tooltip
+            tooltip.transition()
+              .duration(200)
+              .style("opacity", 0);
+          });
+
+        const topThreeData = Array.from(groupedData.values()).sort((a, b) => {
+          const aLastData = a[a.length - 1];
+          const bLastData = b[b.length - 1];
+          return bLastData.coal_consumption - aLastData.coal_consumption;
+        }).slice(0, 3);
+
+        // Append labels to the top three lines
+        const labels = svg.selectAll(".line-label")
+          .data(topThreeData)
+          .enter()
+          .append("text")
+          .attr("class", "line-label")
+          .attr("transform", function (groupData) {
+            const lastData = groupData[groupData.length - 1];
+            return "translate(" + x(lastData.year) + "," + y(lastData.coal_consumption) + ")";
+          })
+          .attr("x", 5)
+          .attr("dy", "0.35em")
+          .style("font", "10px sans-serif")
+          .style("font", "bold 10px sans-serif") // Set font-weight to "bold"
+          .style("font-size", "15px") // Set font size to "12px"
+          .text(function (groupData) { return groupData[0].iso_code; });
+
+        // Add the x-axis
+        svg.append("g")
+          .attr("transform", `translate(0,${height})`)
+          .call(d3.axisBottom(x).tickFormat(d3.format(".0f")));
+
+        // Add the y-axis
+        svg.append("g")
+          .call(d3.axisLeft(y).tickFormat(d => d / 1000 + "k"));
+
+        // Animate the transition
+        svg.transition()
+          .duration(1000)
+          .attr("transform", `translate(${margin.left},${margin.top})`); // Move the container to the original position
+      }
+
+      // ______________________________________________________________________________________________________________________________________________________________
+
+      // Load the CSV data
+      d3.csv("https://raw.githubusercontent.com/reedwrogers/reedwrogers.github.io/main/WCC.csv", d => {
+        return {
+          iso_code: d.iso_code,
+          year: +d.year,
+          coal_consumption: +d.coal_consumption,
+          color: d.color
+        };
+      })
+        .then(data => {
+          // Filter the data for years 2010 to 2020 and coal consumption over 500
+          const filteredData = data.filter(d => d.year >= startYear && d.year <= endYear && d.coal_consumption > 500);
+
+          // Group the data by country
+          const groupedData = d3.group(filteredData, d => d.iso_code);
+
+          // Create an array to store the connected lines data
+          const connectedLinesData = [];
+
+          // Iterate over each group
+          for (const [_, groupData] of groupedData.entries()) {
+            // Sort the group data by year in ascending order
+            groupData.sort((a, b) => a.year - b.year);
+
+            // Connect the closest points within the group
+            for (let i = 0; i < groupData.length - 1; i++) {
+              const currentData = groupData[i];
+              const nextData = groupData[i + 1];
+              connectedLinesData.push(currentData);
+              connectedLinesData.push(nextData);
+            }
+          }
+
+          // Event handler for "next" button
+          d3.select("#nextButton")
+            .on("click", () => {
+              // Increase the range by 10 years
+              startYear += 10;
+              endYear += 10;
+
+              // Filter the data based on the new range
+              const filteredData = data.filter(d => d.year >= startYear && d.year <= endYear && d.coal_consumption > 500);
+
+              // Group the data by country
+              const groupedData = d3.group(filteredData, d => d.iso_code);
+
+              // Update the chart with the new data
+              updateChart(groupedData, 1.2);
+              updateGraphTitle();
+
+            });
+
+          // Event handler for "previous" button
+          d3.select("#previousButton")
+            .on("click", () => {
+              // Decrease the range by 10 years
+              startYear -= 10;
+              endYear -= 10;
+
+              // Filter the data based on the new range
+              const filteredData = data.filter(d => d.year >= startYear && d.year <= endYear && d.coal_consumption > 500);
+
+              // Group the data by country
+              const groupedData = d3.group(filteredData, d => d.iso_code);
+
+              // Update the chart with the new data
+              updateChart(groupedData, -1.2);
+              updateGraphTitle();
+
+            });
+
+          // Set the x and y domains
+          x.domain(d3.extent(filteredData, d => d.year));
+          y.domain([0, d3.max(filteredData, d => d.coal_consumption)]);
+
+          // Define a color scale for countries
+          const colorScale = d3.scaleOrdinal(d3.schemeCategory10);
+
+          // Append lines to connect the closest points
+          const lines = svg.selectAll(".line")
+            .data(groupedData.values())
+            .enter()
+            .append("path")
+            .attr("class", "line")
+            .attr("fill", "none")
+            .style("stroke", (d) => {
+              const colorValue = `#${d[0].color}`;
+              console.log(colorValue);
+              return colorValue;
+            }).attr("stroke-dasharray", function () { return this.getTotalLength() })
+            .attr("stroke-dashoffset", function () { return this.getTotalLength() })
+            .transition()
+            .duration(duration)
+            .delay((d, i) => i * 100) // Delay each line by 200ms
+            .attr("d", (groupData) => line(groupData))
+            .attr("stroke-width", 3)
+            .style("opacity", 1)
+            .attr("stroke-dashoffset", 0);
+
+          // Append circles for each data point
+          svg.selectAll(".dot")
+            .data(filteredData)
+            .enter()
+            .append("circle")
+            .attr("class", "dot")
+            .attr("cx", d => x(d.year))
+            .attr("cy", d => y(d.coal_consumption))
+            .attr("r", 4)
+            .style("fill", (d, i) => {
+              if (!d || typeof d.color === "undefined") {
+                console.log("Undefined color at index:", i);
+              }
+              const colorValue = `#${d.color}`;
+              console.log(colorValue);
+              return colorValue;
+            })
+            .on("mouseover", function (event, d) {
+              // Dim other circles
+              svg.selectAll(".dot")
+                .style("opacity", (circleData) => (circleData === d) ? 1 : 0.1);
+              // Dim other lines
+              svg.selectAll(".line")
+                .style("opacity", (lineData) => (lineData[0].iso_code === d.iso_code) ? 1 : 0.1);
+              svg.selectAll(".line-label")
+                .style("opacity", (lineLabel) => (lineLabel[0].iso_code === d.iso_code) ? 1 : 0.1);
+              // Display tooltip
+              tooltip.transition()
+                .duration(200)
+                .style("opacity", 1);
+              tooltip.html(`${d.year} ${d.iso_code}, Coal Consumption: ${d.coal_consumption} Units`)
+                .style("left", (event.pageX) + "px")
+                .style("top", (event.pageY - 28) + "px");
+            })
+            .on("mouseout", function () {
+              // Restore opacity of all circles and lines
+              svg.selectAll(".dot")
+                .style("opacity", 1);
+              svg.selectAll(".line")
+                .style("opacity", 1);
+              svg.selectAll(".line-label")
+                .style("opacity", 1);
+              // Hide tooltip
+              tooltip.transition()
+                .duration(200)
+                .style("opacity", 0);
+            });
+
+
+          const topThreeData = Array.from(groupedData.values()).sort((a, b) => {
+            const aLastData = a[a.length - 1];
+            const bLastData = b[b.length - 1];
+            return bLastData.coal_consumption - aLastData.coal_consumption;
+          }).slice(0, 3);
+
+          // Append labels to the top three lines
+          const labels = svg.selectAll(".line-label")
+            .data(topThreeData)
+            .enter()
+            .append("text")
+            .attr("class", "line-label")
+            .attr("transform", function (groupData) {
+              const lastData = groupData[groupData.length - 1];
+              return "translate(" + x(lastData.year) + "," + y(lastData.coal_consumption) + ")";
+            })
+            .attr("x", 5)
+            .attr("dy", "0.35em")
+            .style("font", "10px sans-serif")
+            .style("font", "bold 10px sans-serif") // Set font-weight to "bold"
+            .style("font-size", "15px") // Set font size to "12px"
+            .text(function (groupData) { return groupData[0].iso_code; });
+
+          // Add the x-axis
+          svg.append("g")
+            .attr("transform", `translate(0,${height})`)
+            .call(d3.axisBottom(x).tickFormat(d3.format(".0f")));
+
+          // Add the y-axis
+          svg.append("g")
+            .call(d3.axisLeft(y).tickFormat(d => d / 1000 + "k"));
+
+        })
+
+        .catch(error => {
+          console.log("Error loading CSV:", error);
+        });
+
+
+
+      const nextButton = document.querySelector("#nextButton"); // Replace "next-button" with the ID of your "next" button element
+      const previousButton = document.querySelector("#previousButton"); // Replace "previous-button" with the ID of your "previous" button element
+
+      nextButton.addEventListener("click", function () {
+        counter++; // Increment the counter by 1
+        handleButtonVisibility();
+        handleSmokiness();
+        updateChartDescription();
+
       });
 
-      svg.append('g')
-        .attr('transform', 'translate(0,' + height + ')')
-        .call(d3.axisBottom(xScale));
+      previousButton.addEventListener("click", function () {
+        if (counter >= 1) {
+          counter--; // Decrement the counter by 1
+          handleButtonVisibility();
+          handleSmokiness();
+          updateChartDescription();
 
-      svg.append('g')
-        .call(d3.axisLeft(yScale));
-    }
+        }
+      });
 
-    drawLineChart(data);
+      function handleButtonVisibility() {
+        // Check if the counter is less than 4 to determine the visibility of the next button
+        if (counter < 4) {
+          nextButton.style.display = "block"; // or "inline" depending on your button styling
+        } else {
+          nextButton.style.display = "none";
+        }
 
-  </script>
+        // Check if the counter is greater than or equal to 1 to determine the visibility of the previous button
+        if (counter >= 1) {
+          previousButton.style.display = "block"; // or "inline" depending on your button styling
+        } else {
+          previousButton.style.display = "none";
+        }
+      }
+
+      function handleSmokiness() {
+        const body = document.querySelector("body");
+
+        // Set the background color dynamically based on the counter value
+        if (counter === 0) {
+          body.style.background = "white"; // Reset to default color
+        } else {
+          const greyValue = 255 - counter * 25; // Decrease the R, G, and B values to achieve a greyer color
+          body.style.background = `rgb(${greyValue}, ${greyValue}, ${greyValue})`;
+        }
+      }
+
+      function updateGraphTitle() {
+        const titleElement = d3.select(".chart-title");
+        if (counter === 1) {
+          titleElement.text("The Decade of Decadence: Seperating from the Crowd");
+        } else if (counter === 2) {
+          titleElement.text("The Decade of Globalization: 2 Front-runners");
+        } else if (counter === 3) {
+          titleElement.text("In to the 21st Century: China's Consumption");
+        } else if (counter === 4) {
+          titleElement.text("The Tenties: A Cleaner Future?");
+        } else if (counter === 0) {
+          titleElement.text("The Watergate Era: A Time of Steady Production");
+        }
+      }
+
+      // Call the handleButtonVisibility and handleSmokiness functions initially to set the initial visibility of the buttons and the background color
+      handleButtonVisibility();
+      handleSmokiness();
+      updateGraphTitle();
+      updateChartDescription();
+
+    </script>
 </body>
+
 </html>
